@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">UsageStatsManager Sample</string>
+    <string name="permission_message">You need to grant access to usage stats\n GRANT PERMISSION</string>
+</resources>
