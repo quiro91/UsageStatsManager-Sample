@@ -6,16 +6,12 @@ import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
-
-import rx.Observable;
-import rx.android.schedulers.AndroidSchedulers;
-import rx.schedulers.Schedulers;
+import java.util.Map;
 
 import static android.app.AppOpsManager.MODE_ALLOWED;
 import static android.app.AppOpsManager.OPSTR_GET_USAGE_STATS;
@@ -39,21 +35,6 @@ public class UsagePresenter implements UsageContract.Presenter {
         this.context = context;
     }
 
-    private Observable<List<String>> appInstalled = Observable.fromCallable(() -> packageManager.getInstalledApplications(flags))
-            .flatMap(Observable::from)
-            .map(it -> it.packageName)
-            .filter(this::isUserApp)
-            .subscribeOn(Schedulers.computation())
-            .toList();
-
-    private Observable<List<UsageStats>> usageStats = Observable.fromCallable(() -> usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_BEST, start(), System.currentTimeMillis())).flatMap(Observable::from)
-            .groupBy(UsageStats::getPackageName)
-            .flatMap(Observable::toList)
-            .map(this::getMostRecentFromList)
-            .filter(it -> it != null)
-            .subscribeOn(Schedulers.computation())
-            .toList();
-
     private long start() {
         Calendar calendar = Calendar.getInstance();
         calendar.add(Calendar.YEAR, -1);
@@ -67,16 +48,28 @@ public class UsagePresenter implements UsageContract.Presenter {
             return;
         }
 
-        appInstalled.zipWith(usageStats, this::buildUsageStatsWrapper)
-                .subscribeOn(Schedulers.computation())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(view::onUsageStatsRetrieved, error -> Log.e("", error.getMessage()));
+        List<String> installedApps = getInstalledAppList();
+        Map<String, UsageStats> usageStats = usageStatsManager.queryAndAggregateUsageStats(start(), System.currentTimeMillis());
+        List<UsageStats> stats = new ArrayList<>();
+        stats.addAll(usageStats.values());
+
+        List<UsageStatsWrapper> finalList = buildUsageStatsWrapper(installedApps, stats);
+        view.onUsageStatsRetrieved(finalList);
     }
 
     private boolean checkForPermission(Context context) {
         AppOpsManager appOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
         int mode = appOps.checkOpNoThrow(OPSTR_GET_USAGE_STATS, myUid(), context.getPackageName());
         return mode == MODE_ALLOWED;
+    }
+
+    private List<String> getInstalledAppList(){
+        List<ApplicationInfo> infos = packageManager.getInstalledApplications(flags);
+        List<String> installedApps = new ArrayList<>();
+        for (ApplicationInfo info : infos){
+            installedApps.add(info.packageName);
+        }
+        return installedApps;
     }
 
     private List<UsageStatsWrapper> buildUsageStatsWrapper(List<String> packageNames, List<UsageStats> usageStatses) {
@@ -95,31 +88,6 @@ public class UsagePresenter implements UsageContract.Presenter {
         }
         Collections.sort(list);
         return list;
-    }
-
-    private UsageStats getMostRecentFromList(List<UsageStats> usageStatsList) {
-        if (usageStatsList.isEmpty()) {
-            return null;
-        }
-        UsageStats selected = usageStatsList.get(0);
-        for (UsageStats stat : usageStatsList) {
-            if (selected.getLastTimeUsed() < stat.getLastTimeUsed()) {
-                selected = stat;
-            }
-        }
-        return selected;
-    }
-
-    private boolean isUserApp(String packageName) throws IllegalArgumentException {
-        try {
-            ApplicationInfo info = packageManager.getApplicationInfo(packageName, 0);
-            if ((info.flags & ApplicationInfo.FLAG_SYSTEM) != 1) {
-                return true;
-            }
-        } catch (PackageManager.NameNotFoundException e) {
-            throw new IllegalArgumentException(e);
-        }
-        return false;
     }
 
     private UsageStatsWrapper fromUsageStat(String packageName) throws IllegalArgumentException {

@@ -5,9 +5,6 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-
 public class UsageStatVH extends RecyclerView.ViewHolder {
 
     private ImageView appIcon;
@@ -26,18 +23,12 @@ public class UsageStatVH extends RecyclerView.ViewHolder {
         appIcon.setImageDrawable(usageStatsWrapper.getAppIcon());
         appName.setText(usageStatsWrapper.getAppName());
         if (usageStatsWrapper.getUsageStats() == null){
-            lastTimeUsed.setText("Last time used: never");
-        }else{
-            lastTimeUsed.setText("Last time used: " + format(usageStatsWrapper.getUsageStats().getLastTimeUsed()));
+            lastTimeUsed.setText(R.string.last_time_used_never);
+        }else if (usageStatsWrapper.getUsageStats().getLastTimeUsed() == 0L){
+            lastTimeUsed.setText(R.string.last_time_used_never);
+        } else{
+            lastTimeUsed.setText(App.getApp().getString(R.string.last_time_used,
+                    DateUtils.format(usageStatsWrapper)));
         }
-
-    }
-
-    private String format(long millis) {
-        if(millis <= 0L){
-            return "never";
-        }
-        DateFormat format = SimpleDateFormat.getDateInstance(DateFormat.SHORT);
-        return format.format(millis);
     }
 }

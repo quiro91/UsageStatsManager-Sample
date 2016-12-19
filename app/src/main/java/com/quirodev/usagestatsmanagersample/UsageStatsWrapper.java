@@ -30,10 +30,12 @@ public final class UsageStatsWrapper implements Comparable<UsageStatsWrapper> {
 
     @Override
     public int compareTo(@NonNull UsageStatsWrapper usageStatsWrapper) {
-        if (usageStats == null) {
+        if (usageStats == null && usageStatsWrapper.getUsageStats() != null) {
             return 1;
-        } else if (usageStatsWrapper.getUsageStats() == null) {
+        } else if (usageStatsWrapper.getUsageStats() == null && usageStats != null) {
             return -1;
+        } else if (usageStatsWrapper.getUsageStats() == null && usageStats == null) {
+            return 0;
         } else {
             return Long.compare(usageStatsWrapper.getUsageStats().getLastTimeUsed(),
                     usageStats.getLastTimeUsed());
