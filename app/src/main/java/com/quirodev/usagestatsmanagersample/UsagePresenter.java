@@ -29,13 +29,13 @@ public class UsagePresenter implements UsageContract.Presenter {
     private final Context context;
 
     public UsagePresenter(Context context, UsageContract.View view) {
-        usageStatsManager = (UsageStatsManager) context.getSystemService(Context.USAGE_STATS_SERVICE);
+        usageStatsManager = (UsageStatsManager) context.getSystemService("usagestats");
         packageManager = context.getPackageManager();
         this.view = view;
         this.context = context;
     }
 
-    private long start() {
+    private long getStartTime() {
         Calendar calendar = Calendar.getInstance();
         calendar.add(Calendar.YEAR, -1);
         return calendar.getTimeInMillis();
@@ -49,7 +49,7 @@ public class UsagePresenter implements UsageContract.Presenter {
         }
 
         List<String> installedApps = getInstalledAppList();
-        Map<String, UsageStats> usageStats = usageStatsManager.queryAndAggregateUsageStats(start(), System.currentTimeMillis());
+        Map<String, UsageStats> usageStats = usageStatsManager.queryAndAggregateUsageStats(getStartTime(), System.currentTimeMillis());
         List<UsageStats> stats = new ArrayList<>();
         stats.addAll(usageStats.values());
 
